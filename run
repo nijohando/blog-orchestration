@@ -1,0 +1,149 @@
+#!/bin/bash
+
+function check_env() {
+  local var_name=$1
+  echo $var_name
+  if [ -z "${!var_name}" ]; then
+    echo "Environment variable ${var_name} is required"
+    exit 1
+  fi
+}
+
+function usage() {
+  echo "usage: ${CMD_NAME} <command> [<args>]"
+  echo ""
+  echo "Execute servral commands in a container."
+  echo ""
+  echo "tf    Execute a terraform command"
+  echo "sh    Start an interactive shell session"
+  exit 1
+}
+
+function usage_tf() {
+  echo "Usage: ${CMD_NAME} tf [-d <directory>] [-p <profile>] <args>"
+  exit 1
+}
+
+function run() {
+  local dir=$1
+  local cmd=$2
+  echo "$(env | cut -f1 -d= | sed '/^TF_VAR_/!d;s/^/-e / ')"
+  docker run -it --rm \
+    $(env | cut -f1 -d= | sed '/^TF_VAR_/!d;s/^/-e / ') \
+    -e AWS_ACCESS_KEY_ID \
+    -e AWS_SECRET_ACCESS_KEY \
+    -e AWS_DEFAULT_REGION \
+    -v ${dir}:/work \
+    -w /work \
+    --entrypoint /bin/sh \
+    ${COMMAND_CONTAINER} \
+    -c "${cmd}"
+}
+
+function tf() {
+
+  check_env RESOURCE_PREFIX
+  check_env BACKEND_CONFIG_BUCKET
+
+  local dir
+  local profiles=()
+
+  while getopts :p:d:h OPT
+  do
+    case $OPT in
+      p) profiles+=($OPTARG)
+        ;;
+      d) dir=$OPTARG
+        ;;
+      h) usage_tf
+        ;;
+    esac
+  done
+
+  shift $((OPTIND - 1))
+
+  if [ -z $dir ]; then
+    dir=.
+  fi
+
+  local target_dir=$(cd $dir; pwd)
+  local project_name=`basename ${target_dir}`
+  local env_id
+  local varfile
+  echo ""
+  for profile in "${profiles[@]}"
+  do
+    var_file="${profile}.tfvars"
+    if [ -f "${target_dir}/${var_file}" ]; then
+      var_files+="-var-file=${var_file} "
+    else
+      echo "Profile '${profile}' is ignored."
+    fi
+  done
+  if [ ${#profiles[@]} -gt 0 ]; then
+    env_id=${profiles[0]}
+  else
+    env_id="default"
+  fi
+  local backend_config_key=${project_name}
+  if [ ! -z ${env_id} ]; then
+      backend_config_key+="/${env_id}"
+  fi
+  local cmd="terraform"
+  local subcmd=$1
+  shift
+  local subargs=$@
+  local tf_init="${cmd} init -reconfigure -backend-config='bucket=${BACKEND_CONFIG_BUCKET}' -backend-config='key=${backend_config_key}'"
+  local tf_get="${cmd} get"
+  local tf_cmd="${cmd} ${subcmd} ${subargs}"
+  local var_ctx=$(cat << EOS
+{
+  "resource_prefix": "${RESOURCE_PREFIX}",
+  "orchestration_name": "${ORCHESTRATION_NAME}",
+  "project_name": "${project_name}",
+  "env_id": "${env_id}",
+  "tf_s3_bucket": "${BACKEND_CONFIG_BUCKET}",
+  "comment": "terraform://${ORCHESTRATION_NAME}/${project_name}/${env_id}",
+  "tags" = {
+    "terraform.io/orchestration": "${ORCHESTRATION_NAME}",
+    "terraform.io/project": "${project_name}",
+    "terraform.io/env_id": "${env_id}"
+  }
+}
+EOS
+)
+
+  case $subcmd in
+    "plan" | "apply" | "destroy") tf_cmd="${tf_cmd} ${var_files} -var ctx='${var_ctx}'";;
+  esac
+  run ${target_dir} "${tf_init} && ${tf_get} && ${tf_cmd}"
+}
+
+function sh() {
+  run $PWD /bin/ash
+}
+
+SCRIPT_DIR=$(cd $(dirname $0); pwd)
+ORCHESTRATION_NAME=$(basename ${SCRIPT_DIR})
+COMMAND_CONTAINER=nijohando/terraform-awscli:0.12.26
+CMD_NAME=$(basename $0)
+
+check_env AWS_ACCESS_KEY_ID
+check_env AWS_SECRET_ACCESS_KEY
+check_env AWS_DEFAULT_REGION
+
+subcommand=$1
+shift
+
+case $subcommand in
+  tf)
+    tf $@
+    ;;
+  sh)
+    sh
+    ;;
+  *)
+    usage
+    ;;
+esac
+
