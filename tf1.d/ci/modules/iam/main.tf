@@ -1,16 +1,13 @@
 // ==========================================================================
 // Inputs
 // ==========================================================================
-variable "ctx" {
+variable "meta" {
   type = object({
-    resource_prefix = string
-    project_name = string
-    env_id = string
-    tf_s3_bucket = string
-    comment = string
-    tags = map(string)
+    orch_name         = string
+    env_id            = string
   })
 }
+
 
 variable "content_bucket" {
   type = object({
@@ -36,7 +33,7 @@ data "template_file" "ci_policy" {
 }
 
 resource "aws_iam_role" "ci" {
-  name = "${var.ctx.resource_prefix}-${var.ctx.env_id}-blog-ci"
+  name = "${var.meta.orch_name}-${var.meta.env_id}-blog-ci"
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",

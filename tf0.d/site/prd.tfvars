@@ -1,14 +1,14 @@
 site = {
   protocol = "https"
   domain = {
-    root = "nijohan.dev"
+    root = "nijohando.jp"
     sub = "blog"
   }
-  bucket_force_destroy = true
+  bucket_force_destroy = false
 }
 
 waf = {
-  enabled = true
+  enabled = false
   ipv4_allowlist = [""]
   ipv6_allowlist = [""]
 }

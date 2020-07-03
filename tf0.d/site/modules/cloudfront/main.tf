@@ -1,14 +1,9 @@
 // ==========================================================================
 // Inputs
 // ==========================================================================
-variable "ctx" {
+variable "meta" {
   type = object({
-    resource_prefix = string
-    project_name = string
-    env_id = string
-    tf_s3_bucket = string
     comment = string
-    tags = map(string)
   })
 }
 
@@ -82,9 +77,9 @@ resource "aws_cloudfront_distribution" "site" {
   }
   enabled             = true
   is_ipv6_enabled     = true
-  comment             = var.ctx.comment
+  comment             = var.meta.comment
   default_root_object = "index.html"
-  web_acl_id          = var.web_acl.arn
+  web_acl_id          = var.web_acl != null ? var.web_acl.arn : null
   logging_config {
     include_cookies = false
     bucket          = var.log_bucket.bucket_domain_name

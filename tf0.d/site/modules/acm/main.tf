@@ -1,13 +1,8 @@
 // ==========================================================================
 // Inputs
 // ==========================================================================
-variable "ctx" {
+variable "meta" {
   type = object({
-    resource_prefix = string
-    project_name = string
-    env_id = string
-    tf_s3_bucket = string
-    comment = string
     tags = map(string)
   })
 }
@@ -26,7 +21,7 @@ provider "aws" {
 resource "aws_acm_certificate" "cert" {
   domain_name       = var.domain
   validation_method = "DNS"
-  tags = var.ctx.tags
+  tags = var.meta.tags
   lifecycle {
     create_before_destroy = true
   }

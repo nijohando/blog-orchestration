@@ -1,14 +1,11 @@
 // ==========================================================================
 // Inputs
 // ==========================================================================
-variable "ctx" {
+variable "meta" {
   type = object({
-    resource_prefix = string
-    project_name = string
-    env_id = string
-    tf_s3_bucket = string
-    comment = string
-    tags = map(string)
+    orch_name = string
+    env_id    = string
+    tags      = map(string)
   })
 }
 
@@ -50,7 +47,7 @@ data "template_file" "content_bucket_policy" {
 resource "aws_s3_bucket" "content_bucket" {
   bucket        = var.domain
   acl           = "private"
-  tags          = var.ctx.tags
+  tags          = var.meta.tags
   force_destroy = var.bucket_force_destroy
   policy        = data.template_file.content_bucket_policy.rendered
   website {
@@ -63,8 +60,8 @@ resource "aws_s3_bucket" "content_bucket" {
 
 resource "aws_s3_bucket" "log_bucket" {
   provider      = aws.global
-  bucket        = "${var.ctx.resource_prefix}-${var.ctx.env_id}-blog-cloudfront-log"
-  tags          = var.ctx.tags
+  bucket        = "${var.meta.orch_name}-${var.meta.env_id}-blog-cloudfront-log"
+  tags          = var.meta.tags
   force_destroy = var.bucket_force_destroy
   grant {
     id          = data.aws_canonical_user_id.current.id

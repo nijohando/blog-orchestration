@@ -1,14 +1,15 @@
 // ==========================================================================
 // Inputs
 // ==========================================================================
-variable "ctx" {
+variable "meta" {
   type = object({
-    resource_prefix = string
-    project_name    = string
-    env_id          = string
-    tf_s3_bucket    = string
-    comment         = string
-    tags            = map(string)
+    orch_name         = string
+    project_name      = string
+    env_id            = string
+    tf_backend_bucket = string
+    aws_region        = string
+    comment           = string
+    tags              = map(string)
   })
 }
 
@@ -43,9 +44,9 @@ variable "log" {
 data "terraform_remote_state" "site" {
   backend = "s3"
   config = {
-    bucket = var.ctx.tf_s3_bucket
-    key    = "site/${var.ctx.env_id}"
-    region = "ap-northeast-1"
+    bucket = var.meta.tf_backend_bucket
+    key    = "site/${var.meta.env_id}"
+    region = var.meta.aws_region
   }
 }
 
@@ -59,25 +60,25 @@ data "aws_cloudfront_distribution" "site" {
 
 module "ecr" {
   source = "./modules/ecr"
-  ctx = var.ctx
+  meta   = var.meta
 }
 
 module "iam" {
-  source = "./modules/iam"
-  ctx = var.ctx
+  source         = "./modules/iam"
+  meta           = var.meta
   content_bucket = data.aws_s3_bucket.content_bucket
   ecr_repository = module.ecr.repository
 }
 
 module "cloudwatch" {
   source = "./modules/cloudwatch"
-  ctx = var.ctx
+  meta = var.meta
   log = var.log
 }
 
 module "codebuild" {
   source                 = "./modules/codebuild"
-  ctx                    = var.ctx
+  meta                   = var.meta
   service_role           = module.iam.ci_role
   log_group              = module.cloudwatch.log_group
   log_stream_site        = module.cloudwatch.log_stream_site

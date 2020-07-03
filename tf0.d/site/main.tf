@@ -1,23 +1,24 @@
 // ==========================================================================
 // Inputs
 // ==========================================================================
-variable "ctx" {
+variable "meta" {
   type = object({
-    resource_prefix = string
-    project_name = string
-    env_id = string
-    tf_s3_bucket = string
-    comment = string
-    tags = map(string)
+    orch_name         = string
+    project_name      = string
+    env_id            = string
+    tf_backend_bucket = string
+    aws_region        = string
+    comment           = string
+    tags              = map(string)
   })
 }
 
 variable "site" {
   type = object({
     protocol = string
-    domain = object({
-      root = string
-      sub = string
+    domain   = object({
+      root   = string
+      sub    = string
     })
     bucket_force_destroy = bool
   })
@@ -31,19 +32,18 @@ variable "waf" {
   })
 }
 
-
 // ==========================================================================
 // Resources
 // ==========================================================================
 locals {
-  domain           = "${var.site.domain.sub}.${var.site.domain.root}"
-  site_url         = "${var.site.protocol}://${local.domain}"
-  cloudfront_token = uuid()
+  domain            = "${var.site.domain.sub}.${var.site.domain.root}"
+  site_url          = "${var.site.protocol}://${local.domain}"
+  cloudfront_token  = uuid()
 }
 
 module "s3" {
   source               = "./modules/s3"
-  ctx                  = var.ctx
+  meta                 = var.meta
   domain               = local.domain
   site_url             = local.site_url
   bucket_force_destroy = var.site.bucket_force_destroy
@@ -52,27 +52,27 @@ module "s3" {
 
 module "acm" {
   source = "./modules/acm"
-  ctx = var.ctx
+  meta   = var.meta
   domain = local.domain
 }
 
 module "route53" {
-  source = "./modules/route53"
-  ctx = var.ctx
+  source      = "./modules/route53"
+  meta        = var.meta
   root_domain = var.site.domain.root
-  domain = local.domain
-  cert = module.acm.cert
+  domain      = local.domain
+  cert        = module.acm.cert
 }
 
 module "waf" {
   source = "./modules/waf"
-  ctx    = var.ctx
+  meta   = var.meta
   waf    = var.waf
 }
 
 module "cloudfront" {
   source           = "./modules/cloudfront"
-  ctx              = var.ctx
+  meta             = var.meta
   content_bucket   = module.s3.content_bucket
   log_bucket       = module.s3.log_bucket
   cert_validation  = module.route53.cert_validation

@@ -1,13 +1,9 @@
 // ==========================================================================
 // Inputs
 // ==========================================================================
-variable "ctx" {
+variable "meta" {
   type = object({
-    resource_prefix = string
-    project_name = string
     env_id = string
-    tf_s3_bucket = string
-    comment = string
     tags = map(string)
   })
 }
@@ -22,9 +18,9 @@ variable "log" {
 // Resources
 // ==========================================================================
 resource aws_cloudwatch_log_group "blog" {
-  name              = "${var.ctx.env_id}-blog"
+  name              = "${var.meta.env_id}-blog"
   retention_in_days = var.log.retention_in_days
-  tags              = var.ctx.tags
+  tags              = var.meta.tags
 }
 
 resource "aws_cloudwatch_log_stream" "site" {

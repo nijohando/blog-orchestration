@@ -1,14 +1,10 @@
 // ==========================================================================
 // Inputs
 // ==========================================================================
-variable "ctx" {
+variable "meta" {
   type = object({
-    resource_prefix = string
-    project_name = string
-    env_id = string
-    tf_s3_bucket = string
     comment = string
-    tags = map(string)
+    tags    = map(string)
   })
 }
 
@@ -45,8 +41,8 @@ data "aws_route53_zone" "root" {
 
 resource "aws_route53_zone" "sub" {
   name    = var.domain
-  comment = var.ctx.comment
-  tags    = var.ctx.tags
+  comment = var.meta.comment
+  tags    = var.meta.tags
 }
 
 resource "aws_route53_record" "sub_ns" {

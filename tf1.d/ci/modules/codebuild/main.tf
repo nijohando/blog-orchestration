@@ -1,14 +1,10 @@
 // ==========================================================================
 // Inputs
 // ==========================================================================
-variable "ctx" {
+variable "meta" {
   type = object({
-    resource_prefix = string
-    project_name    = string
-    env_id          = string
-    tf_s3_bucket    = string
-    comment         = string
-    tags            = map(string)
+    env_id = string
+    tags   = map(string)
   })
 }
 
@@ -87,8 +83,8 @@ resource "aws_codebuild_source_credential" "github" {
 }
 
 resource "aws_codebuild_project" "site" {
-  name          = "${var.ctx.env_id}-blog-site"
-  description   = "Publish ${var.ctx.env_id} blog site"
+  name          = "${var.meta.env_id}-blog-site"
+  description   = "Publish ${var.meta.env_id} blog site"
   build_timeout = "5"
   service_role  = var.service_role.arn
 
@@ -108,7 +104,7 @@ resource "aws_codebuild_project" "site" {
     image_pull_credentials_type = "SERVICE_ROLE"
     environment_variable {
       name = "ENV_ID"
-      value = var.ctx.env_id
+      value = var.meta.env_id
     }
     environment_variable {
       name  = "S3_BUCKET_NAME"
@@ -138,7 +134,7 @@ resource "aws_codebuild_project" "site" {
 
   source_version = var.github.site.source_version
 
-  tags = var.ctx.tags
+  tags = var.meta.tags
 }
 
 resource "aws_codebuild_webhook" "site" {
@@ -157,8 +153,8 @@ resource "aws_codebuild_webhook" "site" {
 }
 
 resource "aws_codebuild_project" "builder" {
-  name          = "${var.ctx.env_id}-blog-builder"
-  description   = "Build ${var.ctx.env_id} blog builder image"
+  name          = "${var.meta.env_id}-blog-builder"
+  description   = "Build ${var.meta.env_id} blog builder image"
   build_timeout = "5"
   service_role  = var.service_role.arn
 
@@ -205,7 +201,7 @@ resource "aws_codebuild_project" "builder" {
 
   source_version = var.github.builder.source_version
 
-  tags = var.ctx.tags
+  tags = var.meta.tags
 }
 
 resource "aws_codebuild_webhook" "builder" {

@@ -1,13 +1,9 @@
 // ==========================================================================
 // Inputs
 // ==========================================================================
-variable "ctx" {
+variable "meta" {
   type = object({
-    resource_prefix = string
-    project_name = string
     env_id = string
-    tf_s3_bucket = string
-    comment = string
     tags = map(string)
   })
 }
@@ -16,12 +12,12 @@ variable "ctx" {
 // Resources
 // ==========================================================================
 resource "aws_ecr_repository" "blog" {
-  name                 = "${var.ctx.env_id}-blog-builder"
+  name                 = "${var.meta.env_id}-blog-builder"
   image_tag_mutability = "MUTABLE"
   image_scanning_configuration {
     scan_on_push = false
   }
-  tags = var.ctx.tags
+  tags = var.meta.tags
 }
 
 // ==========================================================================

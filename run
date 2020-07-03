@@ -1,6 +1,8 @@
 #!/bin/bash
 
-function check_env() {
+SCRIPT_NAME=$(basename $0)
+
+function require_env() {
   local var_name=$1
   echo $var_name
   if [ -z "${!var_name}" ]; then
@@ -10,13 +12,37 @@ function check_env() {
 }
 
 function usage() {
-  echo "usage: ${CMD_NAME} <command> [<args>]"
+  echo "usage: ${SCRIPT_NAME} <command> [<args>]"
   echo ""
-  echo "Execute servral commands in a container."
+  echo "Execute servral commands in a command container."
   echo ""
-  echo "tf    Execute a terraform command"
-  echo "sh    Start an interactive shell session"
+  echo "img   Build terraform container"
+  echo "sh    Start an interactive shell session in a terraform container"
+  echo "tf    Execute a terraform command in a terraform container"
   exit 1
+}
+
+
+function run() {
+  local dir=$1
+  local cmd=$2
+  docker run -it --rm \
+    -e AWS_REGION \
+    -e AWS_PROFILE \
+    -v ${dir}:/work \
+    -v ${HOME}/.aws:/root/.aws:ro \
+    -w /work \
+    --entrypoint /bin/sh \
+    ${TF_IMAGE} \
+    -c "${cmd}"
+}
+
+function img() {
+  DOCKER_BUILDKIT=1 docker build --build-arg terraform_version=${TF_VERSION} -t ${TF_IMAGE} ./dockerfiles/terraform
+}
+
+function sh() {
+  run $PWD /bin/ash
 }
 
 function usage_tf() {
@@ -24,26 +50,7 @@ function usage_tf() {
   exit 1
 }
 
-function run() {
-  local dir=$1
-  local cmd=$2
-  echo "$(env | cut -f1 -d= | sed '/^TF_VAR_/!d;s/^/-e / ')"
-  docker run -it --rm \
-    $(env | cut -f1 -d= | sed '/^TF_VAR_/!d;s/^/-e / ') \
-    -e AWS_ACCESS_KEY_ID \
-    -e AWS_SECRET_ACCESS_KEY \
-    -e AWS_DEFAULT_REGION \
-    -v ${dir}:/work \
-    -w /work \
-    --entrypoint /bin/sh \
-    ${COMMAND_CONTAINER} \
-    -c "${cmd}"
-}
-
 function tf() {
-
-  check_env RESOURCE_PREFIX
-  check_env BACKEND_CONFIG_BUCKET
 
   local dir
   local profiles=()
@@ -93,54 +100,68 @@ function tf() {
   local subcmd=$1
   shift
   local subargs=$@
-  local tf_init="${cmd} init -reconfigure -backend-config='bucket=${BACKEND_CONFIG_BUCKET}' -backend-config='key=${backend_config_key}'"
-  local tf_get="${cmd} get"
+
+  run ${target_dir} "terraform init -reconfigure -backend-config='bucket=${TF_BACKEND_BUCKET}' -backend-config='key=${backend_config_key}'"
+  if [ $? -ne 0 ]; then
+    exit 1
+  fi
+
   local tf_cmd="${cmd} ${subcmd} ${subargs}"
-  local var_ctx=$(cat << EOS
+  case $subcmd in
+    "plan" | "apply" | "destroy")
+       local var_meta=$(cat << EOS
 {
-  "resource_prefix": "${RESOURCE_PREFIX}",
-  "orchestration_name": "${ORCHESTRATION_NAME}",
-  "project_name": "${project_name}",
-  "env_id": "${env_id}",
-  "tf_s3_bucket": "${BACKEND_CONFIG_BUCKET}",
-  "comment": "terraform://${ORCHESTRATION_NAME}/${project_name}/${env_id}",
-  "tags" = {
-    "terraform.io/orchestration": "${ORCHESTRATION_NAME}",
-    "terraform.io/project": "${project_name}",
-    "terraform.io/env_id": "${env_id}"
-  }
+    "orch_name": "${ORCH_NAME}",
+    "project_name": "${project_name}",
+    "env_id": "${env_id}",
+    "tf_backend_bucket": "${TF_BACKEND_BUCKET}",
+    "aws_region": "${AWS_REGION}",
+    "comment": "terraform://${ORCH_NAME}/${project_name}/${env_id}",
+    "tags" = {
+      "terraform.io/orchestration": "${ORCH_NAME}",
+      "terraform.io/project": "${project_name}",
+      "terraform.io/env_id": "${env_id}"
+    }
 }
 EOS
 )
-
-  case $subcmd in
-    "plan" | "apply" | "destroy") tf_cmd="${tf_cmd} ${var_files} -var ctx='${var_ctx}'";;
+     tf_cmd="${tf_cmd} ${var_files} -var meta='${var_meta}'"
+     ;;
   esac
-  run ${target_dir} "${tf_init} && ${tf_get} && ${tf_cmd}"
+  run ${target_dir} "${tf_cmd}"
 }
 
-function sh() {
-  run $PWD /bin/ash
-}
+require_env AWS_PROFILE
+require_env AWS_REGION
+require_env TF_IMAGE
+require_env TF_VERSION
+require_env TF_BACKEND_BUCKET
+require_env ORCH_NAME
 
-SCRIPT_DIR=$(cd $(dirname $0); pwd)
-ORCHESTRATION_NAME=$(basename ${SCRIPT_DIR})
-COMMAND_CONTAINER=nijohando/terraform-awscli:0.12.26
-CMD_NAME=$(basename $0)
+echo ""
+echo "-----------------------------------------------"
+echo "Environment variables"
+echo "-----------------------------------------------"
+echo "AWS_PROFILE=${AWS_PROFILE}"
+echo "AWS_REGION=${AWS_REGION}"
+echo "TF_IMAGE=${TF_IMAGE}"
+echo "TF_VERSION=${TF_VERSION}"
+echo "TF_BACKEND_BUCKET=${TF_BACKEND_BUCKET}"
+echo "ORCH_NAME=${ORCH_NAME}"
+echo ""
 
-check_env AWS_ACCESS_KEY_ID
-check_env AWS_SECRET_ACCESS_KEY
-check_env AWS_DEFAULT_REGION
-
-subcommand=$1
+subcmd=$1
 shift
 
-case $subcommand in
-  tf)
-    tf $@
+case $subcmd in
+  img)
+    img
     ;;
   sh)
     sh
+    ;;
+  tf)
+    tf $@
     ;;
   *)
     usage
