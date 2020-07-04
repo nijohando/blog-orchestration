@@ -38,7 +38,11 @@ variable "waf" {
 locals {
   domain            = "${var.site.domain.sub}.${var.site.domain.root}"
   site_url          = "${var.site.protocol}://${local.domain}"
-  cloudfront_token  = uuid()
+}
+
+module "ssm" {
+  source = "./modules/ssm"
+  meta   = var.meta
 }
 
 module "s3" {
@@ -47,7 +51,7 @@ module "s3" {
   domain               = local.domain
   site_url             = local.site_url
   bucket_force_destroy = var.site.bucket_force_destroy
-  cloudfront_token     = local.cloudfront_token
+  cloudfront_token     = module.ssm.cloudfront_token
 }
 
 module "acm" {
@@ -80,7 +84,7 @@ module "cloudfront" {
   web_acl          = module.waf.web_acl
   domain           = local.domain
   site_url         = local.site_url
-  cloudfront_token = local.cloudfront_token
+  cloudfront_token = module.ssm.cloudfront_token
 }
 
 // ==========================================================================

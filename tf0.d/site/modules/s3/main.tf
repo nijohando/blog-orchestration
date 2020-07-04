@@ -22,7 +22,10 @@ variable "bucket_force_destroy" {
 }
 
 variable "cloudfront_token" {
-  type = string
+  type = object({
+    name  = string
+    value = string
+  })
 }
 
 // ==========================================================================
@@ -40,7 +43,7 @@ data "template_file" "content_bucket_policy" {
   vars = {
     bucket_name      = var.domain
     site_url         = var.site_url
-    cloudfront_token = var.cloudfront_token
+    cloudfront_token = var.cloudfront_token.value
   }
 }
 

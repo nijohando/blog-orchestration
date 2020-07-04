@@ -49,7 +49,9 @@ variable "site_url" {
 }
 
 variable "cloudfront_token" {
-  type = string
+  type = object({
+    value = string
+  })
 }
 
 // ==========================================================================
@@ -72,7 +74,7 @@ resource "aws_cloudfront_distribution" "site" {
     }
     custom_header {
       name  = "Referer"
-      value = "${var.site_url}/${var.cloudfront_token}"
+      value = "${var.site_url}/${var.cloudfront_token.value}"
     }
   }
   enabled             = true
