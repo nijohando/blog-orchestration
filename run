@@ -108,7 +108,7 @@ function tf() {
 
   local tf_cmd="${cmd} ${subcmd} ${subargs}"
   case $subcmd in
-    "plan" | "apply" | "destroy")
+    "plan" | "apply" | "destroy" | "refresh")
        local var_meta=$(cat << EOS
 {
     "orch_name": "${ORCH_NAME}",
