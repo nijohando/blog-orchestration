@@ -7,9 +7,6 @@ site = {
   bucket_force_destroy = false
 }
 
-waf = {
+basic_auth = {
   enabled = false
-  ipv4_allowlist = [""]
-  ipv6_allowlist = [""]
 }
-

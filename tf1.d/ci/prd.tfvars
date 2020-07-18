@@ -7,10 +7,10 @@ github = {
     location       = "https://github.com/nijohando/blog-builder.git"
     source_version = "master"
   }
-}
-
-secret = {
-  parameter_github_personal_access_token = "/blog/prd/github/personal_access_token"
+  basic_auth = {
+    location       = null
+    source_version = null
+  }
 }
 
 log = {

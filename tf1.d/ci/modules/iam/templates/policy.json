@@ -41,12 +41,47 @@
       ]
     },
     {
-      "Sid": "CloudFrontCacheInvalidation",
+      "Sid": "LambdaModuleBucketManagement",
       "Effect": "Allow",
       "Action": [
-        "cloudfront:CreateInvalidation"
+        "s3:*"
       ],
-      "Resource": "*"
+      "Resource": [
+        "${lambda_bucket_arn}",
+        "${lambda_bucket_arn}/*"
+      ]
+    },
+    %{ if basic_auth_lambda_arn != ""}
+    {
+      "Sid": "LambdaManagement",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:*"
+      ],
+      "Resource": [
+        "${basic_auth_lambda_arn}",
+        "${basic_auth_lambda_arn}:*"
+      ]
+    },
+    %{ endif }
+    {
+      "Sid": "CloudFrontManagement",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:CreateInvalidation",
+        "cloudfront:UpdateDistribution",
+        "cloudfront:GetDistributionConfig"
+      ],
+      "Resource": "${cloudfront_distribution_arn}"
+    },
+    {
+      "Sid": "SSMParameterStoreReader",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameter",
+        "ssm:GetParameters"
+      ],
+      "Resource": "arn:aws:ssm:*:${account_id}:parameter/blog/*"
     }
   ]
 }

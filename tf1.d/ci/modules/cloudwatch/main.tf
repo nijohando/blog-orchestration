@@ -23,28 +23,11 @@ resource aws_cloudwatch_log_group "blog" {
   tags              = var.meta.tags
 }
 
-resource "aws_cloudwatch_log_stream" "site" {
-  name           = "site"
-  log_group_name = aws_cloudwatch_log_group.blog.name
-}
-
-resource "aws_cloudwatch_log_stream" "builder" {
-  name           = "builder"
-  log_group_name = aws_cloudwatch_log_group.blog.name
-}
 
 // ==========================================================================
 // Outputs
 // ==========================================================================
 output "log_group" {
   value = aws_cloudwatch_log_group.blog
-}
-
-output "log_stream_site" {
-  value = aws_cloudwatch_log_stream.site
-}
-
-output "log_stream_builder" {
-  value = aws_cloudwatch_log_stream.builder
 }
 
