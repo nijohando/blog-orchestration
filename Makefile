@@ -1,5 +1,5 @@
 # Configuration
-TF_VERSION=0.12.28
+TF_VERSION=0.13.4
 TF_IMAGE=nijohando/terraform:$(TF_VERSION)
 ORCH_NAME=njhd-blog
 #TF_BACKEND_BUCKET=<tfstate用S3バケット>
@@ -32,7 +32,7 @@ ci/graph:
 	$(VIEW_IMAGE_CMD)
 
 site/dev/%:
-	$(RUN_TF) $(PRJ_SITE_DIR) -p dev -p private $*
+	$(RUN_TF) $(PRJ_SITE_DIR) -p dev $*
 
 ci/dev/%:
 	$(RUN_TF) $(PRJ_CI_DIR) -p dev $*

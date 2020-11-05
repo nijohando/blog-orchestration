@@ -33,13 +33,6 @@ variable "zone" {
   })
 }
 
-variable "web_acl" {
-  type = object({
-    id  = string
-    arn = string
-  })
-}
-
 variable "domain" {
   type = string
 }
@@ -52,6 +45,14 @@ variable "cloudfront_token" {
   type = object({
     value = string
   })
+}
+
+variable "lambda_edge_functions" {
+  type = list(object({
+    lambda_arn   = string
+    event_type   = string
+    include_body = bool
+  }))
 }
 
 // ==========================================================================
@@ -81,7 +82,7 @@ resource "aws_cloudfront_distribution" "site" {
   is_ipv6_enabled     = true
   comment             = var.meta.comment
   default_root_object = "index.html"
-  web_acl_id          = var.web_acl != null ? var.web_acl.arn : null
+  web_acl_id          = null
   logging_config {
     include_cookies = false
     bucket          = var.log_bucket.bucket_domain_name
@@ -93,12 +94,19 @@ resource "aws_cloudfront_distribution" "site" {
     compress               = true
     default_ttl            = 31536000
     viewer_protocol_policy = "redirect-to-https"
-
     forwarded_values {
       query_string = false
 
       cookies {
         forward = "none"
+      }
+    }
+    dynamic "lambda_function_association" {
+      for_each = var.lambda_edge_functions
+      content {
+        event_type   = lambda_function_association.value.event_type
+        lambda_arn   = lambda_function_association.value.lambda_arn
+        include_body = lambda_function_association.value.include_body
       }
     }
   }

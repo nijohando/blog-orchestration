@@ -33,13 +33,12 @@ variable "cloudfront_token" {
 // ==========================================================================
 provider "aws" {
   alias  = "global"
-  region = "us-east-1"
 }
 
 data "aws_canonical_user_id" "current" {}
 
 data "template_file" "content_bucket_policy" {
-  template = "${file("${path.module}/templates/content_bucket_policy.json")}"
+  template = file("${path.module}/templates/content_bucket_policy.json")
   vars = {
     bucket_name      = var.domain
     site_url         = var.site_url
@@ -85,9 +84,29 @@ resource "aws_s3_bucket" "log_bucket" {
   }
 }
 
+resource "aws_s3_bucket" "lambda" {
+  provider      = aws.global
+  bucket        = format("%s-%s-lambda", var.meta.orch_name, var.meta.env_id)
+  acl           = "private"
+  tags          = var.meta.tags
+  force_destroy = var.bucket_force_destroy
+  versioning {
+    enabled = true
+  }
+}
+
 resource "aws_s3_bucket_public_access_block" "log_bucket_public_access_block" {
   provider                = aws.global
   bucket                  = aws_s3_bucket.log_bucket.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_public_access_block" "lambda_bucket_public_access_block" {
+  provider                = aws.global
+  bucket                  = aws_s3_bucket.lambda.id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -103,5 +122,9 @@ output "content_bucket" {
 
 output "log_bucket" {
   value = aws_s3_bucket.log_bucket
+}
+
+output "lambda_bucket" {
+  value = aws_s3_bucket.lambda
 }
 

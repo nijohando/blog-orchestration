@@ -35,6 +35,7 @@ provider "aws" {
     region = "us-east-1"
     alias  = "global"
 }
+
 data "aws_route53_zone" "root" {
   name = "${var.root_domain}."
 }
